@@ -1,4 +1,4 @@
-﻿pipeline {
+pipeline {
     agent any
 
     parameters {
@@ -23,21 +23,19 @@
                     echo "Environment: ${params.ENVIRONMENT}"
                     echo "Version    : ${params.VERSION}"
 
-                    // Block Production if CONFIRM_PROD != YES
                     if (params.ENVIRONMENT == "PRODUCTION" && params.CONFIRM_PROD != "YES") {
                         error("DEPLOYMENT BLOCKED: PRODUCTION deployment requires CONFIRM_PROD = YES.")
                     }
 
-                    // Validate Git Tag/Commit exists
-                    def tagCheck = sh(script: "git rev-parse --verify ${params.VERSION}^{commit}", returnStatus: true)
+                    def tagCheck = bat(script: "git rev-parse --verify ${params.VERSION}^{commit}", returnStatus: true)
                     if (tagCheck != 0) {
                         error("GIT ERROR: Specified version/tag ${params.VERSION} does not exist!")
                     }
 
-                    def commitHash = sh(script: "git rev-parse --short ${params.VERSION}", returnStdout: true).trim()
+                    def commitHash = bat(script: "git rev-parse --short ${params.VERSION}", returnStdout: true).trim()
                     echo "Selected Git Commit: ${commitHash}"
 
-                    sh "docker network create ${NETWORK} || true"
+                    bat "docker network create ${NETWORK} || exit 0"
                 }
             }
         }
@@ -46,7 +44,7 @@
             steps {
                 script {
                     echo "Building Docker Image for ${params.VERSION}..."
-                    sh "docker build -t ${APP_NAME}:${params.VERSION} ."
+                    bat "docker build -t ${APP_NAME}:${params.VERSION} ."
                 }
             }
         }
@@ -54,10 +52,9 @@
         stage("Deployment & Rollback Protection") {
             steps {
                 script {
-                    // Detect and record currently running version
-                    def activeExists = sh(script: "docker ps -q -f name=${APP_NAME}-active", returnStdout: true).trim()
+                    def activeExists = bat(script: "docker ps -q -f name=${APP_NAME}-active", returnStdout: true).trim()
                     if (activeExists) {
-                        env.OLD_VERSION = sh(script: "docker inspect --format=\"{{range .Config.Env}}{{println .}}{{end}}\" ${APP_NAME}-active | grep APP_VERSION | cut -d= -f2", returnStdout: true).trim()
+                        env.OLD_VERSION = bat(script: "docker inspect --format=\"{{range .Config.Env}}{{println .}}{{end}}\" ${APP_NAME}-active", returnStdout: true).trim()
                     } else {
                         env.OLD_VERSION = "v4.2.0"
                     }
@@ -68,16 +65,17 @@
                     echo "----------------------------------------"
 
                     try {
-                        sh "docker stop ${APP_NAME}-new || true && docker rm ${APP_NAME}-new || true"
+                        bat "docker stop ${APP_NAME}-new || exit 0"
+                        bat "docker rm ${APP_NAME}-new || exit 0"
                         
                         echo "Starting Container version ${params.VERSION}..."
-                        sh "docker run -d --name ${APP_NAME}-new --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${params.VERSION} ${APP_NAME}:${params.VERSION}"
+                        bat "docker run -d --name ${APP_NAME}-new --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${params.VERSION} ${APP_NAME}:${params.VERSION}"
 
                         echo "Checking Application Health..."
                         boolean isHealthy = false
                         for (int i = 0; i < 6; i++) {
                             sleep(5)
-                            def health = sh(script: "docker inspect --format=\"{{json .State.Health.Status}}\" ${APP_NAME}-new", returnStdout: true).trim()
+                            def health = bat(script: "docker inspect --format=\"{{json .State.Health.Status}}\" ${APP_NAME}-new", returnStdout: true).trim()
                             echo "Health Check Poll ${i+1}: ${health}"
                             if (health.contains("healthy") && !health.contains("unhealthy")) {
                                 isHealthy = true
@@ -90,8 +88,9 @@
                         }
 
                         echo "Health Check Passed! Promoting new version..."
-                        sh "docker stop ${APP_NAME}-active || true && docker rm ${APP_NAME}-active || true"
-                        sh "docker rename ${APP_NAME}-new ${APP_NAME}-active"
+                        bat "docker stop ${APP_NAME}-active || exit 0"
+                        bat "docker rm ${APP_NAME}-active || exit 0"
+                        bat "docker rename ${APP_NAME}-new ${APP_NAME}-active"
                         echo "FINAL STATE: Successfully Deployed ${params.VERSION}"
 
                     } catch (Exception e) {
@@ -99,11 +98,13 @@
                         echo "HEALTH CHECK FAILED! STARTING ROLLBACK..."
                         echo "=========================================="
 
-                        sh "docker stop ${APP_NAME}-new || true && docker rm ${APP_NAME}-new || true"
+                        bat "docker stop ${APP_NAME}-new || exit 0"
+                        bat "docker rm ${APP_NAME}-new || exit 0"
 
                         echo "Restoring Previous Stable Version: ${env.OLD_VERSION}..."
-                        sh "docker stop ${APP_NAME}-active || true && docker rm ${APP_NAME}-active || true"
-                        sh "docker run -d --name ${APP_NAME}-active --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${env.OLD_VERSION} ${APP_NAME}:${env.OLD_VERSION}"
+                        bat "docker stop ${APP_NAME}-active || exit 0"
+                        bat "docker rm ${APP_NAME}-active || exit 0"
+                        bat "docker run -d --name ${APP_NAME}-active --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${env.OLD_VERSION} ${APP_NAME}:${env.OLD_VERSION}"
 
                         echo "----------------------------------------"
                         echo "ROLLBACK COMPLETED"

@@ -55,7 +55,6 @@ pipeline {
         stage("Deployment & Rollback Protection") {
             steps {
                 script {
-                    // Safe check for active container existence
                     def containerCheck = bat(script: "docker inspect --format=\"{{.Name}}\" ${APP_NAME}-active", returnStatus: true)
                     
                     if (containerCheck == 0) {
@@ -64,11 +63,11 @@ pipeline {
                         if (match) {
                             env.OLD_VERSION = match[0][1].trim()
                         } else {
-                            env.OLD_VERSION = "v4.2.0"
+                            env.OLD_VERSION = params.VERSION
                         }
                     } else {
-                        echo "No active container found (${APP_NAME}-active). Initializing base version."
-                        env.OLD_VERSION = "v4.2.0"
+                        echo "No active container found (${APP_NAME}-active). Setting base version to ${params.VERSION}."
+                        env.OLD_VERSION = params.VERSION
                     }
 
                     echo "----------------------------------------"
@@ -113,19 +112,17 @@ pipeline {
                         bat "docker stop ${APP_NAME}-new || exit 0"
                         bat "docker rm ${APP_NAME}-new || exit 0"
 
-                        echo "Restoring Previous Stable Version: ${env.OLD_VERSION}..."
-                        bat "docker stop ${APP_NAME}-active || exit 0"
-                        bat "docker rm ${APP_NAME}-active || exit 0"
-                        bat "docker run -d --name ${APP_NAME}-active --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${env.OLD_VERSION} ${APP_NAME}:${env.OLD_VERSION}"
-
-                        echo "----------------------------------------"
-                        echo "ROLLBACK COMPLETED"
-                        echo "Restored Active Version: ${env.OLD_VERSION}"
-                        echo "Failed Version Removed : ${params.VERSION}"
-                        echo "----------------------------------------"
+                        if (env.OLD_VERSION != params.VERSION) {
+                            echo "Restoring Previous Stable Version: ${env.OLD_VERSION}..."
+                            bat "docker stop ${APP_NAME}-active || exit 0"
+                            bat "docker rm ${APP_NAME}-active || exit 0"
+                            bat "docker run -d --name ${APP_NAME}-active --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${env.OLD_VERSION} ${APP_NAME}:${env.OLD_VERSION}"
+                        } else {
+                            echo "Initial deployment failed. Cleaning up container."
+                        }
 
                         currentBuild.result = "FAILURE"
-                        error("Deployment Failed. Automated Rollback Triggered.")
+                        error("Deployment Failed.")
                     }
                 }
             }

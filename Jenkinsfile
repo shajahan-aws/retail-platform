@@ -55,10 +55,19 @@ pipeline {
         stage("Deployment & Rollback Protection") {
             steps {
                 script {
-                    def activeExists = bat(script: "docker ps -q -f name=${APP_NAME}-active", returnStdout: true).trim()
-                    if (activeExists) {
-                        env.OLD_VERSION = bat(script: "docker inspect --format=\"{{range .Config.Env}}{{println .}}{{end}}\" ${APP_NAME}-active", returnStdout: true).trim()
+                    // Safe check for active container existence
+                    def containerCheck = bat(script: "docker inspect --format=\"{{.Name}}\" ${APP_NAME}-active", returnStatus: true)
+                    
+                    if (containerCheck == 0) {
+                        def envVars = bat(script: "docker inspect --format=\"{{range .Config.Env}}{{println .}}{{end}}\" ${APP_NAME}-active", returnStdout: true).trim()
+                        def match = (envVars =~ /APP_VERSION=(.*)/)
+                        if (match) {
+                            env.OLD_VERSION = match[0][1].trim()
+                        } else {
+                            env.OLD_VERSION = "v4.2.0"
+                        }
                     } else {
+                        echo "No active container found (${APP_NAME}-active). Initializing base version."
                         env.OLD_VERSION = "v4.2.0"
                     }
 

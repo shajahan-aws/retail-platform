@@ -8,11 +8,13 @@ pipeline {
         choice(name: "CONFIRM_PROD", choices: ["NO", "YES"], description: "Must be YES for PRODUCTION deployments")
     }
 
-    environment {
+  environment {
         APP_NAME = "retail-app"
         PORT = "8081"
         NETWORK = "retail-network"
-        PATH = "C:\\Program Files\\Docker\\Docker\\resources\\bin;%PATH%"
+        // Explicitly include both Git and Docker paths
+        PATH = "C:\\Program Files\\Docker\\Docker\\resources\\bin;C:\\Program Files\\Git\\cmd;${env.PATH}"
+    }
     }
 
     stages {

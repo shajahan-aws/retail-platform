@@ -80,7 +80,7 @@ pipeline {
                         bat "docker rm ${APP_NAME}-new || exit 0"
                         
                         echo "Starting Container version ${params.VERSION}..."
-                        bat "docker run -d --name ${APP_NAME}-new --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${params.VERSION} ${APP_NAME}:${params.VERSION}"
+                        bat "docker run -d --name ${APP_NAME}-new --network ${NETWORK} -p ${PORT}:80 -e APP_VERSION=${params.VERSION} ${APP_NAME}:${params.VERSION}"
 
                         echo "Checking Application Health..."
                         boolean isHealthy = false
@@ -116,7 +116,7 @@ pipeline {
                             echo "Restoring Previous Stable Version: ${env.OLD_VERSION}..."
                             bat "docker stop ${APP_NAME}-active || exit 0"
                             bat "docker rm ${APP_NAME}-active || exit 0"
-                            bat "docker run -d --name ${APP_NAME}-active --network ${NETWORK} -p ${PORT}:8081 -e APP_VERSION=${env.OLD_VERSION} ${APP_NAME}:${env.OLD_VERSION}"
+                            bat "docker run -d --name ${APP_NAME}-active --network ${NETWORK} -p ${PORT}:80 -e APP_VERSION=${env.OLD_VERSION} ${APP_NAME}:${env.OLD_VERSION}"
                         } else {
                             echo "Initial deployment failed. Cleaning up container."
                         }

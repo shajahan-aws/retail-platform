@@ -15,7 +15,7 @@ pipeline {
     }
 
     stages {
-        stage("Validation & Safety Checks") {
+       stage("Validation & Safety Checks") {
             steps {
                 script {
                     echo "=== DEPLOYMENT PARAMETERS ==="
@@ -24,12 +24,12 @@ pipeline {
                     echo "Version    : ${params.VERSION}"
 
                     if (params.ENVIRONMENT == "PRODUCTION" && params.CONFIRM_PROD != "YES") {
-                      def tagCheck = bat(script: "git rev-parse --verify ${params.VERSION}", returnStatus: true)
+                        error("DEPLOYMENT BLOCKED: PRODUCTION deployment requires CONFIRM_PROD = YES.")
                     }
 
                     bat "git fetch --tags"
 
-                    def tagCheck = bat(script: "git rev-parse --verify ${params.VERSION}^{commit}", returnStatus: true)
+                    def tagCheck = bat(script: "git rev-parse --verify ${params.VERSION}", returnStatus: true)
                     if (tagCheck != 0) {
                         error("GIT ERROR: Specified version/tag ${params.VERSION} does not exist!")
                     }
@@ -41,7 +41,6 @@ pipeline {
                 }
             }
         }
-
         stage("Build Docker Image") {
             steps {
                 script {

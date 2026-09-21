@@ -8,10 +8,13 @@ pipeline {
         choice(name: "CONFIRM_PROD", choices: ["NO", "YES"], description: "Must be YES for PRODUCTION deployments")
     }
 
-    environment {
+   environment {
         APP_NAME = "retail-app"
         PORT = "8081"
         NETWORK = "retail-network"
+        // Docker Desktop path inject for Windows Jenkins Node
+        PATH = "C:\\Program Files\\Docker\\Docker\\resources\\bin;%PATH%"
+    }
     }
 
     stages {

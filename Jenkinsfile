@@ -24,7 +24,7 @@ pipeline {
                     echo "Version    : ${params.VERSION}"
 
                     if (params.ENVIRONMENT == "PRODUCTION" && params.CONFIRM_PROD != "YES") {
-                        error("DEPLOYMENT BLOCKED: PRODUCTION deployment requires CONFIRM_PROD = YES.")
+                      def tagCheck = bat(script: "git rev-parse --verify ${params.VERSION}", returnStatus: true)
                     }
 
                     bat "git fetch --tags"

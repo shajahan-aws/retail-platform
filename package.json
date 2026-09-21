@@ -1,0 +1,1 @@
+﻿{"name":"retail-platform","version":"4.2.1","main":"app/server.js","scripts":{"start":"node app/server.js"},"dependencies":{"express":"^4.18.2"}}

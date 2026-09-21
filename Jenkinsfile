@@ -26,7 +26,22 @@ pipeline {
                     if (params.ENVIRONMENT == "PRODUCTION" && params.CONFIRM_PROD != "YES") {
                         error("DEPLOYMENT BLOCKED: PRODUCTION deployment requires CONFIRM_PROD = YES.")
                     }
+echo "=== DEPLOYMENT PARAMETERS ==="
+                    echo "Action     : ${params.DEPLOYMENT_ACTION}"
+                    echo "Environment: ${params.ENVIRONMENT}"
+                    echo "Version    : ${params.VERSION}"
 
+                    if (params.ENVIRONMENT == "PRODUCTION" && params.CONFIRM_PROD != "YES") {
+                        error("DEPLOYMENT BLOCKED: PRODUCTION deployment requires CONFIRM_PROD = YES.")
+                    }
+
+                    // ADD THIS LINE TO FETCH TAGS IN WORKSPACE:
+                    bat "git fetch --tags"
+
+                    def tagCheck = bat(script: "git rev-parse --verify ${params.VERSION}^{commit}", returnStatus: true)
+                    if (tagCheck != 0) {
+                        error("GIT ERROR: Specified version/tag ${params.VERSION} does not exist!")
+                    }
                     def tagCheck = bat(script: "git rev-parse --verify ${params.VERSION}^{commit}", returnStatus: true)
                     if (tagCheck != 0) {
                         error("GIT ERROR: Specified version/tag ${params.VERSION} does not exist!")
